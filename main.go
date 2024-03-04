@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/Owenator8505/pokedexcli/api"
 )
 
 type CliCommand struct {
@@ -16,15 +18,16 @@ type CliCommand struct {
 }
 
 type CliConfigs struct {
-	Opts    map[string]CliCommand
-	Signals chan os.Signal
+	opts            map[string]CliCommand
+	signals         chan os.Signal
+	locationPayload api.LocationPayload
 }
 
 func CommandHelp(params CliConfigs) error {
 	fmt.Printf("%s\n\n", "Welcome to the Pokedex!")
 	fmt.Println("Select an option to continue:")
 
-	for _, opt := range params.Opts {
+	for _, opt := range params.opts {
 		fmt.Printf("%s: %s \n", opt.name, opt.desc)
 	}
 
@@ -32,16 +35,21 @@ func CommandHelp(params CliConfigs) error {
 }
 
 func CommandExit(params CliConfigs) error {
-	params.Signals <- syscall.SIGINT
+	params.signals <- syscall.SIGINT
 	return nil
 }
 
 func CommandGetter(key string, opts *CliConfigs) *CliCommand {
-	value, ok := opts.Opts[key]
+	value, ok := opts.opts[key]
 	if ok {
 		return &value
 	}
 
+	return nil
+}
+
+func CommandMap(params CliConfigs) error {
+	api.GetLocationsHandler(&params.locationPayload)
 	return nil
 }
 
@@ -54,7 +62,7 @@ func StartREPL(reader *bufio.Reader, opts CliConfigs) {
 loop:
 	for {
 		select {
-		case <-opts.Signals:
+		case <-opts.signals:
 			fmt.Println("C-Ya later!")
 			break loop
 		default:
@@ -69,13 +77,15 @@ loop:
 			if command != nil {
 				_ = command.callback(opts)
 				fmt.Print("\nPokedex > ")
+			} else {
+				fmt.Println("Invalid command")
 			}
 		}
 	}
 }
 
-func InitOpts(commandOpts *CliConfigs) {
-	commandOpts.Opts = map[string]CliCommand{
+func InitOpts(configs *CliConfigs) {
+	configs.opts = map[string]CliCommand{
 		"help": {
 			name:     "help",
 			desc:     "Display a help message",
@@ -86,11 +96,23 @@ func InitOpts(commandOpts *CliConfigs) {
 			desc:     "Exit the Pokedex",
 			callback: CommandExit,
 		},
+		"map": {
+			name:     "map",
+			desc:     "List location areas",
+			callback: CommandMap,
+		},
 	}
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	commandOpts.Signals = signals
+	configs.signals = signals
+
+	locationPayload := api.LocationPayload{}
+	locationPayload.Id = 0
+	locationPayload.Name = ""
+	locationPayload.Limit = 20
+	locationPayload.Offset = 0
+	configs.locationPayload = locationPayload
 }
 
 func main() {
