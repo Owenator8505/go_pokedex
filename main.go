@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,7 +15,7 @@ import (
 type CliCommand struct {
 	name     string
 	desc     string
-	callback func(CliConfigs) error
+	callback func(*CliConfigs) error
 }
 
 type CliConfigs struct {
@@ -23,7 +24,7 @@ type CliConfigs struct {
 	locationPayload api.LocationPayload
 }
 
-func CommandHelp(params CliConfigs) error {
+func CommandHelp(params *CliConfigs) error {
 	fmt.Printf("%s\n\n", "Welcome to the Pokedex!")
 	fmt.Println("Select an option to continue:")
 
@@ -34,8 +35,14 @@ func CommandHelp(params CliConfigs) error {
 	return nil
 }
 
-func CommandExit(params CliConfigs) error {
+func CommandExit(params *CliConfigs) error {
 	params.signals <- syscall.SIGINT
+	return nil
+}
+
+func CommandMap(params *CliConfigs) error {
+	api.GetLocationsHandler(&params.locationPayload)
+	log.Printf("Location Payload: %v", params.locationPayload)
 	return nil
 }
 
@@ -45,11 +52,6 @@ func CommandGetter(key string, opts *CliConfigs) *CliCommand {
 		return &value
 	}
 
-	return nil
-}
-
-func CommandMap(params CliConfigs) error {
-	api.GetLocationsHandler(&params.locationPayload)
 	return nil
 }
 
@@ -75,7 +77,7 @@ loop:
 			command := CommandGetter(key, &opts)
 
 			if command != nil {
-				_ = command.callback(opts)
+				_ = command.callback(&opts)
 				fmt.Print("\nPokedex > ")
 			} else {
 				fmt.Println("Invalid command")

@@ -35,6 +35,7 @@ type Response struct {
 }
 
 func GetLocationsHandler(p *LocationPayload) {
+	log.Printf("Location Payload: %v", p)
 	apiUrl := strings.Join([]string{baseApiURL, apiVersion, endPoint}, "/")
 
 	params := url.Values{}
